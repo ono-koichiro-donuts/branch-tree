@@ -251,68 +251,6 @@ def esc(s):
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
-
-
-def build_html_node(branch, is_root=False, is_target=False):
-    """ブランチ1ノード分のHTML（子なし）を返す。"""
-    b_url = branch_url(branch)
-    pr    = get_pr_info(branch)
-
-    branch_part = (
-        f'<a class="branch{" target" if is_target else ""}{" root" if is_root else ""}" '
-        f'href="{esc(b_url)}" target="_blank">{esc(branch)}</a>'
-    )
-
-    pr_part = ""
-    if pr:
-        pr_part = (
-            f' <a class="pr" href="{esc(pr["url"])}" target="_blank">'
-            f'#{pr["number"]}</a>'
-            f' <a class="text-link" href="{esc(pr["url"])}" target="_blank">{esc(pr["title"])}</a>'
-        )
-    else:
-        pr_part = ' <span class="no-pr">(no PR)</span>'
-
-    return branch_part + pr_part
-
-
-def build_subtree_html(branch, show_pr, visited=None):
-    """branch 以下の <li>...</li> HTML文字列を返す。"""
-    if visited is None:
-        visited = set()
-    if branch in visited:
-        return ""
-    visited.add(branch)
-
-    pr   = get_pr_info(branch)
-    b_url = branch_url(branch)
-
-    branch_link = (
-        f'<a class="branch" href="{esc(b_url)}" target="_blank">{esc(branch)}</a>'
-    )
-    pr_part = ""
-    if show_pr:
-        if pr:
-            pr_part = (
-                f' <a class="pr" href="{esc(pr["url"])}" target="_blank">'
-                f'#{pr["number"]}</a>'
-                f' <a class="text-link" href="{esc(pr["url"])}" target="_blank">{esc(pr["title"])}</a>'
-            )
-        else:
-            pr_part = ' <span class="no-pr">(no PR)</span>'
-
-    children = get_children(branch)
-    if children:
-        child_html = "\n".join(
-            build_subtree_html(c, show_pr, visited) for c in children
-        )
-        inner = f"<ul>\n{child_html}\n</ul>"
-    else:
-        inner = ""
-
-    return f"<li>{branch_link}{pr_part}{inner}</li>"
-
-
 HTML_TEMPLATE = """\
 <!DOCTYPE html>
 <html lang="ja">
@@ -327,64 +265,72 @@ HTML_TEMPLATE = """\
     color: #c9d1d9;
     padding: 24px;
   }}
-  ul {{
-    list-style: none;
-    padding-left: 0;
-    margin: 0;
+  .trunk {{
+    border-left: 1px solid #5c6a7a;
+    margin-left: 10px;
   }}
-  li {{
+  .node-row {{
+    display: flex;
+    align-items: flex-start;
+  }}
+  .branch {{
     position: relative;
-    padding: 4px 0 4px 24px;
-    line-height: 1.6;
+    top: 0.8em;
+    width: 14px;
+    min-width: 14px;
+    border-top: 1px solid #5c6a7a;
+    flex-shrink: 0;
   }}
-  /* ツリー線 */
-  li::before {{
-    content: "";
-    position: absolute;
-    left: 8px;
-    top: 0;
-    bottom: 0;
-    border-left: 1px solid #30363d;
+  .node-content {{
+    flex: 1;
+    min-width: 0;
+    padding: 4px 0;
   }}
-  li::after {{
-    content: "";
-    position: absolute;
-    left: 8px;
-    top: 13px;
-    width: 12px;
-    border-top: 1px solid #30363d;
+  .leaf {{
+    display: inline-block;
+    background: #1c2333;
+    border: 1px solid #5c6a7a;
+    border-radius: 6px;
+    padding: 4px 10px;
+    margin: 2px 0;
   }}
-  li:last-child::before {{
-    height: 13px;
+  .leaf.root {{
+    border-color: #388bfd;
   }}
-  /* ルートは線なし */
-  ul > li:first-child::before,
-  ul > li:first-child::after {{
-    display: none;
+  .leaf.target {{
+    border-color: #f0883e;
   }}
-  a.branch {{
+  .node-branch {{
+    display: block;
+    margin-top: 4px;
+    padding-left: 1em;
+  }}
+  .node-pr {{
+    display: block;
+    font-size: 12px;
+  }}
+  .node-issue {{
+    display: block;
+    font-size: 12px;
+  }}
+  a.branch-link {{
     color: #58a6ff;
     text-decoration: none;
-    font-weight: normal;
   }}
-  a.branch:hover {{ text-decoration: underline; }}
-  a.branch.target {{
-    color: #f0883e;
-    font-weight: bold;
-  }}
-  a.branch.root {{
-    color: #7ee787;
-    font-weight: bold;
-  }}
+  a.branch-link:hover {{ text-decoration: underline; }}
+  a.branch-link.target {{ color: #f0883e; font-weight: bold; }}
+  a.branch-link.root   {{ color: #7ee787; font-weight: bold; }}
   a.pr {{
     display: inline-block;
-    margin-left: 8px;
     padding: 1px 6px;
     border-radius: 10px;
     font-size: 11px;
     text-decoration: none;
     font-weight: bold;
+    background: #238636;
+    color: #fff;
   }}
+  a.pr:hover {{ opacity: 0.85; }}
   a.issue {{
     display: inline-block;
     padding: 1px 6px;
@@ -403,43 +349,9 @@ HTML_TEMPLATE = """\
     margin-left: 4px;
   }}
   .text-link:hover {{ color: #c9d1d9; }}
-  .node-issue {{
-    display: block;
-    margin-top: 3px;
-    font-size: 12px;
-  }}
-  a.pr {{
-    display: inline-block;
-    padding: 1px 6px;
-    border-radius: 10px;
-    font-size: 11px;
-    text-decoration: none;
-    font-weight: bold;
-    background: #238636;
-    color: #fff;
-  }}
-  a.pr:hover  {{ opacity: 0.85; }}
   .no-pr {{
     color: #6e7681;
     font-size: 11px;
-  }}
-  .node {{
-    display: inline-block;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    padding: 4px 10px;
-    margin: 2px 0;
-  }}
-  .node-branch {{
-    display: block;
-    margin-top: 4px;
-    padding-left: 1em;
-    border-left: 2px solid #30363d;
-  }}
-  .node-pr {{
-    display: block;
-    margin-top: 3px;
-    font-size: 12px;
   }}
   h2 {{
     color: #8b949e;
@@ -451,9 +363,9 @@ HTML_TEMPLATE = """\
 </head>
 <body>
 <h2>branch-tree — {target}</h2>
-<ul>
+<div class="tree">
 {tree_html}
-</ul>
+</div>
 </body>
 </html>
 """
@@ -462,15 +374,12 @@ HTML_TEMPLATE = """\
 def output_html(chain, target_branch, show_pr):
     visited = set()
 
-    def make_node_html(branch, is_root=False, is_target=False):
-        """ブランチ+PRを <div class="node"> でラップして返す。"""
+    def make_node_card(branch, is_root=False, is_target=False):
+        """issue/PR/branchを含む .node カードHTMLを返す。"""
         b_url = branch_url(branch)
-        css   = " ".join(filter(None, ["branch", "root" if is_root else "", "target" if is_target else ""]))
-        branch_line = (
-            f'<span class="node-branch">'
-            f'<a class="{css}" href="{esc(b_url)}" target="_blank">{esc(branch)}</a>'
-            f'</span>'
-        )
+        node_cls = "leaf" + (" root" if is_root else "") + (" target" if is_target else "")
+        link_cls = "branch-link" + (" root" if is_root else "") + (" target" if is_target else "")
+
         issue_lines = ""
         pr_line = ""
         if not is_root and show_pr:
@@ -492,44 +401,61 @@ def output_html(chain, target_branch, show_pr):
                 )
             else:
                 pr_line = '<span class="node-pr"><span class="no-pr">(no PR)</span></span>'
-        return f'<div class="node">{issue_lines}{pr_line}{branch_line}</div>'
 
-    def subtree_node(branch):
-        if branch in visited:
+        branch_line = (
+            f'<span class="node-branch">'
+            f'<a class="{link_cls}" href="{esc(b_url)}" target="_blank">{esc(branch)}</a>'
+            f'</span>'
+        )
+        return f'<div class="{node_cls}">{issue_lines}{pr_line}{branch_line}</div>'
+
+    def subtree_trunk(branches):
+        """branchesを <div class="trunk"> > node-row* に変換して返す。"""
+        rows = []
+        for b in branches:
+            if b in visited:
+                continue
+            visited.add(b)
+            card = make_node_card(b)
+            children = get_children(b)
+            child_trunk = subtree_trunk([c for c in children if c not in visited])
+            rows.append(
+                f'<div class="node-row">'
+                f'<div class="branch"></div>'
+                f'<div class="node-content">{card}{child_trunk}</div>'
+                f'</div>'
+            )
+        if not rows:
             return ""
-        visited.add(branch)
-        children = get_children(branch)
-        child_items = []
-        for c in children:
-            if c not in visited:
-                child_items.append(subtree_node(c))
-        inner = ("<ul>\n" + "\n".join(child_items) + "\n</ul>") if child_items else ""
-        return f"<li>{make_node_html(branch)}{inner}</li>"
+        return '<div class="trunk">' + "".join(rows) + "</div>"
 
-    # 祖先チェーンを入れ子の <ul><li> で表現
-    # chain[0]=root, chain[-1]=target_branch
-    def build_chain_html(chain_remaining):
+    def chain_trunk(chain_remaining):
+        """chain_remaining の各ノードを単一子の trunk として入れ子に変換して返す。"""
         if not chain_remaining:
             return ""
         b = chain_remaining[0]
-        is_root   = (b == chain[0])
         is_target = (b == target_branch)
+        card = make_node_card(b, is_target=is_target)
 
         if is_target:
-            # 子孫を展開
             children = get_children(target_branch)
-            child_items = []
-            for c in children:
-                if c not in visited:
-                    child_items.append(subtree_node(c))
-            inner = ("<ul>\n" + "\n".join(child_items) + "\n</ul>") if child_items else ""
+            child_trunk = subtree_trunk([c for c in children if c not in visited])
         else:
-            rest = build_chain_html(chain_remaining[1:])
-            inner = f"<ul>\n{rest}\n</ul>" if rest else ""
+            child_trunk = chain_trunk(chain_remaining[1:])
 
-        return f"<li>{make_node_html(b, is_root=is_root, is_target=is_target)}{inner}</li>"
+        return (
+            '<div class="trunk">'
+            '<div class="node-row">'
+            '<div class="branch"></div>'
+            f'<div class="node-content">{card}{child_trunk}</div>'
+            '</div>'
+            '</div>'
+        )
 
-    tree_html = build_chain_html(chain)
+    root = chain[0]
+    visited.add(root)
+    root_card = make_node_card(root, is_root=True)
+    tree_html = root_card + chain_trunk(chain[1:])
     return HTML_TEMPLATE.format(target=esc(target_branch), tree_html=tree_html)
 
 
