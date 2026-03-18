@@ -18,15 +18,12 @@ gh auth login
 
 ## インストール
 
+pathの通ったディレクトリにコピーして実行権限を付与して下さい。
+
 ```bash
+# ~/bin に配置する場合
 cp branch-tree ~/bin/branch-tree
 chmod +x ~/bin/branch-tree
-```
-
-`~/bin` にパスが通っていない場合は `~/.zshrc` 等に追加してください。
-
-```bash
-export PATH="$HOME/bin:$PATH"
 ```
 
 ## 使い方
